@@ -1,18 +1,20 @@
-/* using System.Net;
+using System.Net;
 using System.Text;
 using System.Text.Json;
-using EntityFrameworkRelationships.Tests.IntegrationTests.Fixtures;
+using DapperExample.Tests.Helpers;
+using DapperExample.Tests.IntegrationTests.Fixtures;
+using DapperExample.Web.DTOs;
 
 namespace DapperExample.Tests.IntegrationTests;
 
 [Collection("SharedContext")]
-public class ReviewIntegrationTests 
+public class ReviewIntegrationTests
 {
     private readonly JsonSerializerOptions _serializerOptions;
     private readonly HttpClient _httpClient;
     private const string BasePath = "/api/reviews";
 
-    public ReviewIntegrationTests(CustomWebApplicationFactory<Program> factory) 
+    public ReviewIntegrationTests(CustomWebApplicationFactory<Program> factory)
     {
         _httpClient = factory.CreateClient();
 
@@ -28,11 +30,8 @@ public class ReviewIntegrationTests
     public async Task GeAll_ShouldReturnAllItems()
     {
         var response = await _httpClient.GetAsync($"{BasePath}");
-        var payloadString = await response.Content.ReadAsStringAsync();
-        var payloadObject = JsonSerializer.Deserialize<List<ReviewDto>>(payloadString, _serializerOptions);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.True(payloadObject?.Count >= DbHelper.Reviews.Count);
     }
 
     #endregion
@@ -42,9 +41,10 @@ public class ReviewIntegrationTests
     [Fact]
     public async Task GeById_ShouldReturnOnlyOneItem()
     {
-        var existingItem = DbHelper.Reviews.SingleOrDefault(x => x.Id == DbHelper.ReviewId1);
+        var itemId = DbDataHelper.ReviewId1;
+        var existingItem = DbDataHelper.Reviews.SingleOrDefault(x => x.Id == itemId);
 
-        var response = await _httpClient.GetAsync($"{BasePath}/{existingItem?.Id}");
+        var response = await _httpClient.GetAsync($"{BasePath}/{itemId}");
         var payloadString = await response.Content.ReadAsStringAsync();
         var payloadObject = JsonSerializer.Deserialize<ReviewDto>(payloadString, _serializerOptions);
 
@@ -85,26 +85,23 @@ public class ReviewIntegrationTests
         {
             Comment = "This is a comment 01",
             Rating = 3,
-            BookId = DbHelper.BookId1
+            BookId = DbDataHelper.BookId1
         };
         var payload = JsonSerializer.Serialize(newItem, _serializerOptions);
         HttpContent httpContent = new StringContent(payload, Encoding.UTF8, "application/json");
 
         var response = await _httpClient.PostAsync($"{BasePath}", httpContent);
-        var payloadString = await response.Content.ReadAsStringAsync();
-        var payloadObject = JsonSerializer.Deserialize<ReviewDto>(payloadString, _serializerOptions);
+        var locationHeader = response.Headers.GetValues("Location").FirstOrDefault();
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        Assert.NotEqual(Guid.Empty, payloadObject?.Id);
-        Assert.Equal(newItem.Comment, payloadObject?.Comment);
-        Assert.Equal(newItem.Rating, payloadObject?.Rating);
-        Assert.Equal(newItem.BookId, payloadObject?.BookId);
+        Assert.Contains(BasePath, locationHeader?.ToLower() ?? string.Empty);
     }
 
     [Theory]
     [MemberData(nameof(MissingRequiredFieldsBase))]
     [MemberData(nameof(MissingRequiredFieldsForCreating))]
-    public async Task Create_ShouldReturnBadRequestWhenMissingRequiredFields(string[] expectedCollection, object payloadObject)
+    public async Task Create_ShouldReturnBadRequestWhenMissingRequiredFields(string[] expectedCollection,
+        object payloadObject)
     {
         var payload = JsonSerializer.Serialize(payloadObject, _serializerOptions);
         HttpContent httpContent = new StringContent(payload, Encoding.UTF8, "application/json");
@@ -118,7 +115,8 @@ public class ReviewIntegrationTests
 
     [Theory]
     [MemberData(nameof(InvalidFields))]
-    public async Task Create_ShouldReturnBadRequestWhenFieldsAreInvalid(string[] expectedCollection, object payloadObject)
+    public async Task Create_ShouldReturnBadRequestWhenFieldsAreInvalid(string[] expectedCollection,
+        object payloadObject)
     {
         var payload = JsonSerializer.Serialize(payloadObject, _serializerOptions);
         HttpContent httpContent = new StringContent(payload, Encoding.UTF8, "application/json");
@@ -142,14 +140,14 @@ public class ReviewIntegrationTests
         {
             Comment = "This is a comment 01",
             Rating = 3,
-            BookId = DbHelper.BookId1
+            BookId = DbDataHelper.BookId1
         };
         var newItemPayload = JsonSerializer.Serialize(newItem, _serializerOptions);
         var newItemHttpContent = new StringContent(newItemPayload, Encoding.UTF8, "application/json");
         var newItemResponse = await _httpClient.PostAsync($"{BasePath}", newItemHttpContent);
-        var newItemPayloadString = await newItemResponse.Content.ReadAsStringAsync();
-        var newItemPayloadObject = JsonSerializer.Deserialize<ReviewDto>(newItemPayloadString, _serializerOptions);
-        var newItemId = newItemPayloadObject?.Id.ToString();
+
+        var locationHeader = newItemResponse.Headers.GetValues("Location").FirstOrDefault();
+        var newItemId = locationHeader?.Split('/').Last();
 
         // Update the created item
         var itemToUpdate = new
@@ -165,7 +163,8 @@ public class ReviewIntegrationTests
         // Ensure the item has been changed getting the item from the DB
         var updatedItemResponse = await _httpClient.GetAsync($"{BasePath}/{newItemId}");
         var updatedItemPayloadString = await updatedItemResponse.Content.ReadAsStringAsync();
-        var updatedItemPayloadObject = JsonSerializer.Deserialize<ReviewDto>(updatedItemPayloadString, _serializerOptions);
+        var updatedItemPayloadObject =
+            JsonSerializer.Deserialize<ReviewDto>(updatedItemPayloadString, _serializerOptions);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Equal(itemToUpdate.Comment, updatedItemPayloadObject?.Comment);
@@ -194,7 +193,8 @@ public class ReviewIntegrationTests
     [Theory]
     [MemberData(nameof(MissingRequiredFieldsBase))]
     [MemberData(nameof(MissingRequiredFieldsForUpdating))]
-    public async Task Update_ShouldReturnBadRequestWhenMissingRequiredFields(string[] expectedCollection, object payloadObject)
+    public async Task Update_ShouldReturnBadRequestWhenMissingRequiredFields(string[] expectedCollection,
+        object payloadObject)
     {
         var payload = JsonSerializer.Serialize(payloadObject, _serializerOptions);
         HttpContent httpContent = new StringContent(payload, Encoding.UTF8, "application/json");
@@ -209,7 +209,8 @@ public class ReviewIntegrationTests
 
     [Theory]
     [MemberData(nameof(InvalidFields))]
-    public async Task Update_ShouldReturnBadRequestWhenFieldsAreInvalid(string[] expectedCollection, object payloadObject)
+    public async Task Update_ShouldReturnBadRequestWhenFieldsAreInvalid(string[] expectedCollection,
+        object payloadObject)
     {
         var payload = JsonSerializer.Serialize(payloadObject, _serializerOptions);
         HttpContent httpContent = new StringContent(payload, Encoding.UTF8, "application/json");
@@ -234,19 +235,20 @@ public class ReviewIntegrationTests
         {
             Comment = "This is a comment 01",
             Rating = 3,
-            BookId = DbHelper.BookId1
+            BookId = DbDataHelper.BookId1
         };
         var newItemPayload = JsonSerializer.Serialize(newItem, _serializerOptions);
         var newItemHttpContent = new StringContent(newItemPayload, Encoding.UTF8, "application/json");
         var newItemResponse = await _httpClient.PostAsync($"{BasePath}", newItemHttpContent);
-        var newItemPayloadString = await newItemResponse.Content.ReadAsStringAsync();
-        var newItemPayloadObject = JsonSerializer.Deserialize<AuthorDto>(newItemPayloadString, _serializerOptions);
+        
+        var locationHeader = newItemResponse.Headers.GetValues("Location").FirstOrDefault();
+        var newItemId = locationHeader?.Split('/').Last();
 
         // Remove the created item
-        var response = await _httpClient.DeleteAsync($"{BasePath}/{newItemPayloadObject?.Id}");
+        var response = await _httpClient.DeleteAsync($"{BasePath}/{newItemId}");
 
         // Ensure the item has been deleted trying to get the item from the DB
-        var deletedItemResponse = await _httpClient.GetAsync($"{BasePath}/{newItemPayloadObject?.Id}");
+        var deletedItemResponse = await _httpClient.GetAsync($"{BasePath}/{newItemId}");
 
         Assert.Equal(HttpStatusCode.Created, newItemResponse.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
@@ -275,9 +277,9 @@ public class ReviewIntegrationTests
 
     public static TheoryData<string[], object> MissingRequiredFieldsBase => new()
     {
-        {new[] {"The Comment field is required."}, new {Rating = 3, BookId = new Guid()}},
-        {new[] {"The Rating field is required."}, new {Comment = "Comment", BookId = new Guid()}},
-        {new[] {"The Comment field is required."}, new {Comment = "", Rating = 3, BookId = new Guid()}}
+        { new[] { "The Comment field is required." }, new { Rating = 3, BookId = new Guid() } },
+        { new[] { "The Rating field is required." }, new { Comment = "Comment", BookId = new Guid() } },
+        { new[] { "The Comment field is required." }, new { Comment = "", Rating = 3, BookId = new Guid() } }
     };
 
     public static TheoryData<string[], object> MissingRequiredFieldsForCreating => new()
@@ -291,17 +293,23 @@ public class ReviewIntegrationTests
             },
             new { }
         },
-        {new[] {"The BookId field is required."}, new {Comment = "Comment", Rating = 3}},
+        { new[] { "The BookId field is required." }, new { Comment = "Comment", Rating = 3 } },
     };
 
     public static TheoryData<string[], object> MissingRequiredFieldsForUpdating => new()
     {
-        {new[] {"The Id field is required."}, new {Comment = "Comment", Rating = 3, BookId = new Guid()}},
+        { new[] { "The Id field is required." }, new { Comment = "Comment", Rating = 3, BookId = new Guid() } },
     };
 
     public static TheoryData<string[], object> InvalidFields => new()
     {
-        {new[] {"The Rating field must be between 1 and 5."}, new {Id = new Guid(), Comment = "Comment", Rating = 0, BookId = new Guid()}},
-        {new[] {"The Rating field must be between 1 and 5."}, new {Id = new Guid(), Comment = "Comment", Rating = 6, BookId = new Guid()}},
+        {
+            new[] { "The Rating field must be between 1 and 5." },
+            new { Id = new Guid(), Comment = "Comment", Rating = 0, BookId = new Guid() }
+        },
+        {
+            new[] { "The Rating field must be between 1 and 5." },
+            new { Id = new Guid(), Comment = "Comment", Rating = 6, BookId = new Guid() }
+        },
     };
-} */
+}

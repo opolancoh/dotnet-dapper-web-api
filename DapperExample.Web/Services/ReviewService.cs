@@ -1,114 +1,149 @@
+using System.Data;
+using Dapper;
+using DapperExample.Web.Contracts;
+using DapperExample.Web.Data;
+using DapperExample.Web.Data.Schemas;
+using DapperExample.Web.DTOs;
+using DapperExample.Web.Exceptions;
+using DapperExample.Web.Models;
+
 namespace DapperExample.Web.Services;
 
-/*public class ReviewService : IReviewService
+public class ReviewService : IReviewService
 {
-    private readonly ApplicationDbContext _context;
-    private readonly DbSet<Review> _entity;
+    private readonly IDapperContext _context;
 
-    public ReviewService(ApplicationDbContext context)
+    public ReviewService(IDapperContext context)
     {
         _context = context;
-        _entity = context.Reviews;
     }
 
     public async Task<IEnumerable<ReviewDto>> GetAll()
     {
-        var query = GetReviewDtoQuery();
-
-        return await query.ToListAsync();
+        return await GetItemData();
     }
 
     public async Task<ReviewDto?> GetById(Guid id)
     {
-        var query = GetReviewDtoQuery();
+        var result = await GetItemData(id);
 
-        return await query.SingleOrDefaultAsync(x => x.Id == id);
+        return result.SingleOrDefault();
     }
 
-    public async Task<ReviewDto> Create(ReviewForCreatingDto item)
+    public async Task<Guid> Create(ReviewForCreatingDto item)
     {
-        var newItem = new Review()
+        var newItem = new Review
         {
-            Id = new Guid(),
-            Comment = item.Comment,
+            Id = Guid.NewGuid(),
+            Comment = item.Comment!,
             Rating = item.Rating!.Value,
             BookId = item.BookId!.Value
         };
 
-        _entity.Add(newItem);
-        await _context.SaveChangesAsync();
+        const string query = $@"
+            INSERT INTO {ReviewSchema.Table} (
+              {ReviewSchema.Columns.Id},
+              {ReviewSchema.Columns.Comment},
+              {ReviewSchema.Columns.Rating},
+              {ReviewSchema.Columns.BookId}
+            )
+            VALUES (
+                @{nameof(Review.Id)}, 
+                @{nameof(Review.Comment)}, 
+                @{nameof(Review.Rating)},
+                @{nameof(Review.BookId)}
+            )
+        ";
 
-        var dto = TransformItemToReviewDto(newItem);
+        var parameters = new DynamicParameters();
+        parameters.Add(nameof(Review.Id), newItem.Id, DbType.Guid);
+        parameters.Add(nameof(Review.Comment), newItem.Comment, DbType.String);
+        parameters.Add(nameof(Review.Rating), newItem.Rating, DbType.Int32);
+        parameters.Add(nameof(Review.BookId), newItem.BookId, DbType.Guid);
 
-        return dto;
+        using var connection = _context.CreateConnection();
+        var result = await connection.ExecuteAsync(query, parameters);
+
+        if (result == 0)
+            throw new Exception("The resource was not modified.");
+
+        return newItem.Id;
     }
 
-    public async Task<ReviewDto> Update(ReviewForUpdatingDto item)
+    public async Task Update(ReviewForUpdatingDto item)
     {
-        var currentItem = _entity.SingleOrDefault(x => x.Id == item.Id);
-        if (currentItem == null)
-            throw new EntityNotFoundException(item.Id!.Value);
+        var itemToUpdate = new Review()
+        {
+            Id = item.Id!.Value,
+            Comment = item.Comment!,
+            Rating = item.Rating!.Value
+        };
 
-        currentItem.Comment = item.Comment;
-        currentItem.Rating = item.Rating!.Value;
+        const string query = $@"
+            UPDATE {ReviewSchema.Table} SET 
+              {ReviewSchema.Columns.Comment} = @{nameof(Review.Comment)}, 
+              {ReviewSchema.Columns.Rating} = @{nameof(Review.Rating)}              
+            WHERE {ReviewSchema.Columns.Id} = @{nameof(Review.Id)}";
 
-        _context.Entry(currentItem).State = EntityState.Modified;
-        await _context.SaveChangesAsync();
+        var parameters = new DynamicParameters();
+        parameters.Add(nameof(Review.Id), itemToUpdate.Id, DbType.Guid);
+        parameters.Add(nameof(Review.Comment), itemToUpdate.Comment, DbType.String);
+        parameters.Add(nameof(Review.Rating), itemToUpdate.Rating, DbType.Int32);
 
-        var dto = TransformItemToReviewDto(currentItem);
+        using var connection = _context.CreateConnection();
+        var result = await connection.ExecuteAsync(query, parameters);
 
-        return dto;
+        if (result == 0)
+        {
+            var itemExists = await ItemExists(itemToUpdate.Id, connection);
+            if (!itemExists)
+                throw new EntityNotFoundException(itemToUpdate.Id);
+            else
+                throw new Exception("The resource was not modified.");
+        }
     }
 
     public async Task Remove(Guid id)
     {
-        var item = new Review {Id = id};
+        const string query = $"DELETE FROM {ReviewSchema.Table} WHERE {ReviewSchema.Columns.Id} = @{nameof(Book.Id)}";
 
-        _entity.Remove(item);
+        var parameters = new DynamicParameters();
+        parameters.Add(nameof(Book.Id), id, DbType.Guid);
 
-        try
+        using var connection = _context.CreateConnection();
+        var result = await connection.ExecuteAsync(query, parameters);
+
+        if (result == 0)
         {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!ItemExists(id))
-            {
+            var itemExists = await ItemExists(id, connection);
+            if (!itemExists)
                 throw new EntityNotFoundException(id);
-            }
             else
-            {
-                throw;
-            }
+                throw new Exception("The resource was not modified.");
         }
     }
 
-    private bool ItemExists(Guid id)
+    private async Task<bool> ItemExists(Guid id, IDbConnection connection)
     {
-        return _entity.Any(e => e.Id == id);
+        return await connection.ExecuteScalarAsync<bool>(
+            $"SELECT COUNT(1) FROM {ReviewSchema.Table} WHERE {ReviewSchema.Columns.Id} = '{id}'");
     }
 
-    private IQueryable<ReviewDto> GetReviewDtoQuery()
+    private async Task<IEnumerable<ReviewDto>> GetItemData(Guid? itemId = null)
     {
-        return _entity
-            .AsNoTracking()
-            .Select(x => new ReviewDto
-            {
-                Id = x.Id,
-                Comment = x.Comment,
-                Rating = x.Rating,
-                BookId = x.BookId
-            });
-    }
+        const string baseQuery = $@"
+            SELECT r.{ReviewSchema.Columns.Id}, 
+                   r.{ReviewSchema.Columns.Comment}, 
+                   r.{ReviewSchema.Columns.Rating}, 
+                   r.{ReviewSchema.Columns.BookId} 
+            FROM {ReviewSchema.Table} r
+         ";
 
-    private static ReviewDto TransformItemToReviewDto(Review item)
-    {
-        return new ReviewDto
-        {
-            Id = item.Id,
-            Comment = item.Comment,
-            Rating = item.Rating,
-            BookId = item.BookId
-        };
+        using var connection = _context.CreateConnection();
+        var result = await connection.QueryAsync<ReviewDto>(
+            itemId == null ? baseQuery : $"{baseQuery} WHERE r.{ReviewSchema.Columns.Id} = '{itemId.Value}'"
+        );
+
+        return result;
     }
-}*/
+}

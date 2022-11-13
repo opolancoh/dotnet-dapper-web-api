@@ -61,18 +61,9 @@ public class BookService : IBookService
 
     public async Task<BookBaseDto> Update(BookForUpdatingDto item)
     {
-        var itemId = item.Id!.Value;
-        using var connection = _context.CreateConnection();
-
-        var itemExists = await ItemExists(itemId, connection);
-        if (!itemExists)
-        {
-            throw new EntityNotFoundException(itemId);
-        }
-
         var itemToUpdate = new Book()
         {
-            Id = itemId,
+            Id = item.Id!.Value,
             Title = item.Title!,
             PublishedOn = item.PublishedOn!.Value.ToUniversalTime()
         };
@@ -88,53 +79,47 @@ public class BookService : IBookService
         parameters.Add(nameof(Book.Title), itemToUpdate.Title, DbType.String);
         parameters.Add(nameof(Book.PublishedOn), itemToUpdate.PublishedOn, DbType.DateTime);
 
-
+        using var connection = _context.CreateConnection();
         var result = await connection.ExecuteAsync(query, parameters);
+        if (result > 0)
+            return new BookBaseDto
+            {
+                Id = itemToUpdate.Id,
+                Title = itemToUpdate.Title,
+                PublishedOn = itemToUpdate.PublishedOn
+            };
 
-        return new BookBaseDto
-        {
-            Id = itemToUpdate.Id,
-            Title = itemToUpdate.Title,
-            PublishedOn = itemToUpdate.PublishedOn
-        };
+        var itemExists = await ItemExists(itemToUpdate.Id, connection);
+        if (!itemExists)
+            throw new EntityNotFoundException(itemToUpdate.Id);
+        else
+            throw new Exception("The resource was not modified.");
     }
 
     public async Task Remove(Guid id)
     {
-        using var connection = _context.CreateConnection();
-        var itemExists = await ItemExists(id, connection);
-        if (!itemExists)
-        {
-            throw new EntityNotFoundException(id);
-        }
-
         const string query = $"DELETE FROM {BookSchema.Table} WHERE {BookSchema.Columns.Id} = @{nameof(Book.Id)}";
 
         var parameters = new DynamicParameters();
         parameters.Add(nameof(Book.Id), id, DbType.Guid);
 
-        await connection.ExecuteAsync(query, parameters);
+        using var connection = _context.CreateConnection();
+        var result = await connection.ExecuteAsync(query, parameters);
 
-        /* try
+        if (result == 0)
         {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!ItemExists(id))
-            {
+            var itemExists = await ItemExists(id, connection);
+            if (!itemExists)
                 throw new EntityNotFoundException(id);
-            }
             else
-            {
-                throw;
-            }
-        } */
+                throw new Exception("The resource was not modified.");
+        }
     }
 
     private async Task<bool> ItemExists(Guid id, IDbConnection connection)
     {
-        return await connection.ExecuteScalarAsync<bool>($"SELECT COUNT(1) FROM {BookSchema.Table} WHERE {BookSchema.Columns.Id} = '{id}'");
+        return await connection.ExecuteScalarAsync<bool>(
+            $"SELECT COUNT(1) FROM {BookSchema.Table} WHERE {BookSchema.Columns.Id} = '{id}'");
     }
 
     private async Task<IEnumerable<BookDto>> GetItemData(Guid? itemId = null)
@@ -151,19 +136,22 @@ public class BookService : IBookService
 
         using var connection = _context.CreateConnection();
         var result = new Dictionary<Guid, BookDto>();
-        await connection.QueryAsync<Book, Review, Book>(itemId == null ? baseQuery : $"{baseQuery} WHERE b.{BookSchema.Columns.Id} = '{itemId.Value}'",
+        await connection.QueryAsync<Book, Review, Book>(
+            itemId == null ? baseQuery : $"{baseQuery} WHERE b.{BookSchema.Columns.Id} = '{itemId.Value}'",
             (book, review) =>
             {
                 // Check if the item was already added
                 if (result.TryGetValue(book.Id, out var existingItem))
                 {
-                    existingItem.Reviews.Add(new ReviewBaseDto {Id = review.Id, Comment = review.Comment, Rating = review.Rating});
+                    existingItem.Reviews.Add(new ReviewBaseDto
+                        { Id = review.Id, Comment = review.Comment, Rating = review.Rating });
                 }
                 else
                 {
-                    var newItem = new BookDto {Id = book.Id, Title = book.Title, PublishedOn = book.PublishedOn};
+                    var newItem = new BookDto { Id = book.Id, Title = book.Title, PublishedOn = book.PublishedOn };
                     if (review != null)
-                        newItem.Reviews.Add(new ReviewBaseDto {Id = review.Id, Comment = review.Comment, Rating = review.Rating});
+                        newItem.Reviews.Add(new ReviewBaseDto
+                            { Id = review.Id, Comment = review.Comment, Rating = review.Rating });
                     result.Add(book.Id, newItem);
                 }
 

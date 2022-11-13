@@ -19,7 +19,8 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             if (serviceDescriptor != null) services.Remove(serviceDescriptor);
 
             // Add DbContext for testing
-            const string connectionString = "Server=localhost; Database=books_dapper_db_test; Username=postgres; Password=My@Passw0rd;";
+            const string connectionString =
+                "Server=localhost; Database=books_dapper_db_test; Username=postgres; Password=My@Passw0rd;";
             services.AddSingleton<IDapperContext>(x => new DapperContext(connectionString));
 
             //
@@ -30,17 +31,16 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             // var dbContext = scopedServices.GetRequiredService<DapperContext>();
             var dbContext = scopedServices.GetRequiredService<IDapperContext>();
 
-            var dbHelper = new DbCreationHelper(dbContext, "");
+            // var dbHelper = new DbHelper(dbContext, "");
             // dbHelper.EnsureDeleted();
             // dbHelper.EnsureCreated();
 
             // Don't update/remove this initial data
-            var books = DbDataHelper.Books;
+            //var books = DbDataHelper.Books;
             // dbHelper.AddBooks(books);
 
-            /* var reviews = DbHelper.Reviews;
-             db.Reviews?.AddRange(reviews);
-             db.SaveChanges(); */
+            // var reviews = DbDataHelper.Reviews;
+            // dbHelper.AddReviews(reviews);
 
             logger.LogError("All data was saved successfully");
         });

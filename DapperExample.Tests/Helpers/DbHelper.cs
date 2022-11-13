@@ -6,12 +6,12 @@ using DapperExample.Web.Models;
 
 namespace DapperExample.Tests.Helpers;
 
-public class DbCreationHelper
+public class DbHelper
 {
     private readonly IDapperContext _context;
     private readonly string _dbName;
 
-    public DbCreationHelper(IDapperContext context, string dbName)
+    public DbHelper(IDapperContext context, string dbName)
     {
         _context = context;
         _dbName = dbName;
@@ -79,6 +79,47 @@ public class DbCreationHelper
                 parameters.Add(nameof(Book.Id), item.Id, DbType.Guid);
                 parameters.Add(nameof(Book.Title), item.Title, DbType.String);
                 parameters.Add(nameof(Book.PublishedOn), item.PublishedOn, DbType.DateTime);
+
+                connection.Execute(query, parameters);
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Exception executing AddBooks(): {e}");
+        }
+        finally
+        {
+            connection.Close();
+        }
+    }
+    
+    public void AddReviews(IEnumerable<Review> items)
+    {
+        const string query = $@"
+            INSERT INTO {ReviewSchema.Table} (
+              {ReviewSchema.Columns.Id}, 
+              {ReviewSchema.Columns.Comment}, 
+              {ReviewSchema.Columns.Rating},
+              {ReviewSchema.Columns.BookId}                          
+            )
+            VALUES (
+              @{nameof(Review.Id)}, 
+              @{nameof(Review.Comment)}, 
+              @{nameof(Review.Rating)},
+              @{nameof(Review.BookId)}
+            )";
+
+        var connection = _context.CreateConnection();
+        try
+        {
+            connection.Open();
+            foreach (var item in items)
+            {
+                var parameters = new DynamicParameters();
+                parameters.Add(nameof(Review.Id), item.Id, DbType.Guid);
+                parameters.Add(nameof(Review.Comment), item.Comment, DbType.String);
+                parameters.Add(nameof(Review.Rating), item.Rating, DbType.Int32);
+                parameters.Add(nameof(Review.BookId), item.BookId, DbType.Guid);
 
                 connection.Execute(query, parameters);
             }

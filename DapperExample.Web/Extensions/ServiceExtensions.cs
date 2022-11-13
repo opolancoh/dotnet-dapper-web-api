@@ -20,7 +20,7 @@ public static class ServiceExtensions
     public static void ConfigurePersistenceServices(this IServiceCollection services)
     {
         services.AddScoped<IBookService, BookService>();
-        // services.AddScoped<IReviewService, ReviewService>();
+        services.AddScoped<IReviewService, ReviewService>();
     }
 
     public static void ConfigureDbContext(this IServiceCollection services, IConfiguration configuration)
