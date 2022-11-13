@@ -1,15 +1,16 @@
 using System.Data;
+using DapperExample.Web.Contracts;
 using Npgsql;
 
 namespace DapperExample.Web.Data;
 
-public class DapperContext
+public class DapperContext : IDapperContext
 {
     private readonly string _connectionString;
 
-    public DapperContext(IConfiguration configuration)
+    public DapperContext(string connectionString)
     {
-        _connectionString = configuration.GetConnectionString("PostgresConnection");
+        _connectionString = connectionString;
     }
 
     public IDbConnection CreateConnection()

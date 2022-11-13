@@ -4,8 +4,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.ConfigureCors();
+builder.Services.ConfigureDbContext(builder.Configuration);
 builder.Services.ConfigurePersistenceServices();
-builder.Services.ConfigureDbContext();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -28,3 +28,6 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// For testing purposes
+public partial class Program {}

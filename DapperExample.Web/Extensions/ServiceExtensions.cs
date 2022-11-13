@@ -23,8 +23,8 @@ public static class ServiceExtensions
         // services.AddScoped<IReviewService, ReviewService>();
     }
 
-    public static void ConfigureDbContext(this IServiceCollection services)
+    public static void ConfigureDbContext(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddSingleton<DapperContext>();
+        services.AddSingleton<IDapperContext>(x => new DapperContext(configuration.GetConnectionString("PostgresConnection")));
     }
 }

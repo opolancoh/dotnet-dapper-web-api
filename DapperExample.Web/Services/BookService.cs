@@ -4,15 +4,16 @@ using DapperExample.Web.Contracts;
 using DapperExample.Web.Data;
 using DapperExample.Web.Data.Schemas;
 using DapperExample.Web.DTOs;
+using DapperExample.Web.Exceptions;
 using DapperExample.Web.Models;
 
 namespace DapperExample.Web.Services;
 
 public class BookService : IBookService
 {
-    private readonly DapperContext _context;
+    private readonly IDapperContext _context;
 
-    public BookService(DapperContext context)
+    public BookService(IDapperContext context)
     {
         _context = context;
     }
@@ -60,9 +61,18 @@ public class BookService : IBookService
 
     public async Task<BookBaseDto> Update(BookForUpdatingDto item)
     {
+        var itemId = item.Id!.Value;
+        using var connection = _context.CreateConnection();
+
+        var itemExists = await ItemExists(itemId, connection);
+        if (!itemExists)
+        {
+            throw new EntityNotFoundException(itemId);
+        }
+
         var itemToUpdate = new Book()
         {
-            Id = item.Id!.Value,
+            Id = itemId,
             Title = item.Title!,
             PublishedOn = item.PublishedOn!.Value.ToUniversalTime()
         };
@@ -78,8 +88,8 @@ public class BookService : IBookService
         parameters.Add(nameof(Book.Title), itemToUpdate.Title, DbType.String);
         parameters.Add(nameof(Book.PublishedOn), itemToUpdate.PublishedOn, DbType.DateTime);
 
-        using var connection = _context.CreateConnection();
-        await connection.ExecuteAsync(query, parameters);
+
+        var result = await connection.ExecuteAsync(query, parameters);
 
         return new BookBaseDto
         {
@@ -91,12 +101,18 @@ public class BookService : IBookService
 
     public async Task Remove(Guid id)
     {
+        using var connection = _context.CreateConnection();
+        var itemExists = await ItemExists(id, connection);
+        if (!itemExists)
+        {
+            throw new EntityNotFoundException(id);
+        }
+
         const string query = $"DELETE FROM {BookSchema.Table} WHERE {BookSchema.Columns.Id} = @{nameof(Book.Id)}";
 
         var parameters = new DynamicParameters();
         parameters.Add(nameof(Book.Id), id, DbType.Guid);
 
-        using var connection = _context.CreateConnection();
         await connection.ExecuteAsync(query, parameters);
 
         /* try
@@ -114,6 +130,11 @@ public class BookService : IBookService
                 throw;
             }
         } */
+    }
+
+    private async Task<bool> ItemExists(Guid id, IDbConnection connection)
+    {
+        return await connection.ExecuteScalarAsync<bool>($"SELECT COUNT(1) FROM {BookSchema.Table} WHERE {BookSchema.Columns.Id} = '{id}'");
     }
 
     private async Task<IEnumerable<BookDto>> GetItemData(Guid? itemId = null)
