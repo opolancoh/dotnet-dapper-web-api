@@ -31,16 +31,16 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             // var dbContext = scopedServices.GetRequiredService<DapperContext>();
             var dbContext = scopedServices.GetRequiredService<IDapperContext>();
 
-            // var dbHelper = new DbHelper(dbContext, "");
+            var dbHelper = new DbHelper(dbContext, "");
             // dbHelper.EnsureDeleted();
             // dbHelper.EnsureCreated();
 
             // Don't update/remove this initial data
-            //var books = DbDataHelper.Books;
-            // dbHelper.AddBooks(books);
+            var books = DbDataHelper.Books;
+            dbHelper.AddBooks(books);
 
-            // var reviews = DbDataHelper.Reviews;
-            // dbHelper.AddReviews(reviews);
+            var reviews = DbDataHelper.Reviews;
+            dbHelper.AddReviews(reviews);
 
             logger.LogError("All data was saved successfully");
         });

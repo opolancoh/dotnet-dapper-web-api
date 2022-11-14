@@ -30,7 +30,7 @@ public class BookService : IBookService
         return result.SingleOrDefault();
     }
 
-    public async Task<BookBaseDto> Create(BookForCreatingDto item)
+    public async Task<Guid> Create(BookForCreatingDto item)
     {
         var newItem = new Book()
         {
@@ -49,17 +49,15 @@ public class BookService : IBookService
         parameters.Add(nameof(Book.PublishedOn), newItem.PublishedOn, DbType.DateTime);
 
         using var connection = _context.CreateConnection();
-        await connection.ExecuteAsync(query, parameters);
+        var result = await connection.ExecuteAsync(query, parameters);
 
-        return new BookBaseDto
-        {
-            Id = newItem.Id,
-            Title = newItem.Title,
-            PublishedOn = newItem.PublishedOn
-        };
+        if (result == 0)
+            throw new Exception("The resource was not modified.");
+
+        return newItem.Id;
     }
 
-    public async Task<BookBaseDto> Update(BookForUpdatingDto item)
+    public async Task Update(BookForUpdatingDto item)
     {
         var itemToUpdate = new Book()
         {
@@ -81,19 +79,15 @@ public class BookService : IBookService
 
         using var connection = _context.CreateConnection();
         var result = await connection.ExecuteAsync(query, parameters);
-        if (result > 0)
-            return new BookBaseDto
-            {
-                Id = itemToUpdate.Id,
-                Title = itemToUpdate.Title,
-                PublishedOn = itemToUpdate.PublishedOn
-            };
-
-        var itemExists = await ItemExists(itemToUpdate.Id, connection);
-        if (!itemExists)
-            throw new EntityNotFoundException(itemToUpdate.Id);
-        else
-            throw new Exception("The resource was not modified.");
+        
+        if (result == 0)
+        {
+            var itemExists = await ItemExists(itemToUpdate.Id, connection);
+            if (!itemExists)
+                throw new EntityNotFoundException(itemToUpdate.Id);
+            else
+                throw new Exception("The resource was not modified.");
+        }
     }
 
     public async Task Remove(Guid id)

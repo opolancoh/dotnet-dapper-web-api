@@ -30,18 +30,21 @@ public class ReviewIntegrationTests
     public async Task GeAll_ShouldReturnAllItems()
     {
         var response = await _httpClient.GetAsync($"{BasePath}");
+        var payloadString = await response.Content.ReadAsStringAsync();
+        var payloadObject = JsonSerializer.Deserialize<List<ReviewDto>>(payloadString, _serializerOptions);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(payloadObject?.Count >= DbDataHelper.Reviews.Count);
     }
 
     #endregion
 
     #region GeById
 
-    [Fact]
-    public async Task GeById_ShouldReturnOnlyOneItem()
+    [Theory]
+    [MemberData(nameof(ItemIds))]
+    public async Task GeById_ShouldReturnOnlyOneItem(Guid itemId)
     {
-        var itemId = DbDataHelper.ReviewId1;
         var existingItem = DbDataHelper.Reviews.SingleOrDefault(x => x.Id == itemId);
 
         var response = await _httpClient.GetAsync($"{BasePath}/{itemId}");
@@ -83,7 +86,7 @@ public class ReviewIntegrationTests
     {
         var newItem = new
         {
-            Comment = "This is a comment 01",
+            Comment = "This is a new item to test Create_ShouldCreateAnItem",
             Rating = 3,
             BookId = DbDataHelper.BookId1
         };
@@ -92,8 +95,10 @@ public class ReviewIntegrationTests
 
         var response = await _httpClient.PostAsync($"{BasePath}", httpContent);
         var locationHeader = response.Headers.GetValues("Location").FirstOrDefault();
+        var newItemId = locationHeader?.Split('/').Last();
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotEqual(Guid.Empty, new Guid(newItemId!));
         Assert.Contains(BasePath, locationHeader?.ToLower() ?? string.Empty);
     }
 
@@ -138,7 +143,7 @@ public class ReviewIntegrationTests
         // Create a new item
         var newItem = new
         {
-            Comment = "This is a comment 01",
+            Comment = "This is a new item to test Update_ShouldUpdateAnItem",
             Rating = 3,
             BookId = DbDataHelper.BookId1
         };
@@ -153,7 +158,7 @@ public class ReviewIntegrationTests
         var itemToUpdate = new
         {
             Id = newItemId,
-            Comment = "This is a comment 01 Updated",
+            Comment = "This is a new item to test Update_ShouldUpdateAnItem [updated]",
             Rating = 5,
         };
         var payload = JsonSerializer.Serialize(itemToUpdate, _serializerOptions);
@@ -233,7 +238,7 @@ public class ReviewIntegrationTests
         // Create a new item
         var newItem = new
         {
-            Comment = "This is a comment 01",
+            Comment = "This is a new item to test Remove_ShouldRemoveOnlyOneItem",
             Rating = 3,
             BookId = DbDataHelper.BookId1
         };
@@ -311,5 +316,17 @@ public class ReviewIntegrationTests
             new[] { "The Rating field must be between 1 and 5." },
             new { Id = new Guid(), Comment = "Comment", Rating = 6, BookId = new Guid() }
         },
+    };
+    
+    public static TheoryData<Guid> ItemIds => new()
+    {
+        { DbDataHelper.ReviewId1 },
+        { DbDataHelper.ReviewId2 },
+        { DbDataHelper.ReviewId3 },
+        { DbDataHelper.ReviewId4 },
+        { DbDataHelper.ReviewId5 },
+        { DbDataHelper.ReviewId6 },
+        { DbDataHelper.ReviewId7 },
+        { DbDataHelper.ReviewId8 },
     };
 }

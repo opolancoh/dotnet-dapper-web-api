@@ -39,9 +39,9 @@ public class BooksController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<BookBaseDto>> Create(BookForCreatingDto item)
     {
-        var newItem = await _service.Create(item);
+        var newItemId = await _service.Create(item);
 
-        return CreatedAtAction(nameof(GetById), new {id = newItem.Id}, newItem);
+        return CreatedAtAction(nameof(GetById), new { id = newItemId }, new { });
     }
 
     [HttpPut("{id}")]
