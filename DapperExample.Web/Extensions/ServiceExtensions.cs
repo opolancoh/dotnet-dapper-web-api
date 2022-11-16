@@ -27,7 +27,7 @@ public static class ServiceExtensions
 
     public static void ConfigureDbContext(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddSingleton(new DapperContext(configuration.GetConnectionString("ApplicationDbConnection")));
+        services.AddSingleton(x => new DapperContext(configuration.GetConnectionString("ApplicationDbConnection")));
     }
 
     public static void ConfigureDbMigration(this IServiceCollection services, IConfiguration configuration)

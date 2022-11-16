@@ -34,38 +34,18 @@ public class DapperContext
         get { return _database ??= new Database(this); }
     }
 
-    public void AddBooks(IEnumerable<Book> items)
+    public int AddBooks(IEnumerable<Book> items)
     {
         const string query =
             $@"INSERT INTO ""{BookSchema.Table}"" (""{BookSchema.Columns.Id}"", ""{BookSchema.Columns.Title}"", ""{BookSchema.Columns.PublishedOn}"") " +
             $@"VALUES (@{BookSchema.Columns.Id}, @{BookSchema.Columns.Title}, @{BookSchema.Columns.PublishedOn})";
 
-
-        var connection = CreateConnection();
-        try
-        {
-            connection.Open();
-            foreach (var item in items)
-            {
-                var parameters = new DynamicParameters();
-                parameters.Add(BookSchema.Columns.Id, item.Id, DbType.Guid);
-                parameters.Add(BookSchema.Columns.Title, item.Title, DbType.String);
-                parameters.Add(BookSchema.Columns.PublishedOn, item.PublishedOn, DbType.DateTime);
-
-                var result = connection.Execute(query, parameters);
-            }
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine($"Exception executing AddBooks(): {e}");
-        }
-        finally
-        {
-            connection.Close();
-        }
+        using var connection = CreateConnection();
+        var parametersList = items.Select(d => new DynamicParameters(d));
+        return connection.Execute(query, parametersList);
     }
 
-    public void AddReviews(IEnumerable<Review> items)
+    public int AddReviews(IEnumerable<Review> items)
     {
         const string query =
             $@"INSERT INTO ""{ReviewSchema.Table}"" (" +
@@ -79,29 +59,9 @@ public class DapperContext
             $@"@{ReviewSchema.Columns.Rating}, " +
             $@"@{ReviewSchema.Columns.BookId})";
 
-        var connection = CreateConnection();
-        try
-        {
-            connection.Open();
-            foreach (var item in items)
-            {
-                var parameters = new DynamicParameters();
-                parameters.Add(ReviewSchema.Columns.Id, item.Id, DbType.Guid);
-                parameters.Add(ReviewSchema.Columns.Comment, item.Comment, DbType.String);
-                parameters.Add(ReviewSchema.Columns.Rating, item.Rating, DbType.Int32);
-                parameters.Add(ReviewSchema.Columns.BookId, item.BookId, DbType.Guid);
-
-                var result = connection.Execute(query, parameters);
-            }
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine($"Exception executing AddBooks(): {e}");
-        }
-        finally
-        {
-            connection.Close();
-        }
+        using var connection = CreateConnection();
+        var parametersList = items.Select(d => new DynamicParameters(d));
+        return connection.Execute(query, parametersList);
     }
 
     private string GetDatabaseName(string connectionString)

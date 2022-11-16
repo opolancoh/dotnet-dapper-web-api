@@ -35,7 +35,7 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             // DbContext
             var dbContextService = services.SingleOrDefault(x => x.ServiceType == typeof(DapperContext));
             if (dbContextService != null) services.Remove(dbContextService);
-            services.AddSingleton(new DapperContext(stringConnection));
+            services.AddSingleton(x => new DapperContext(stringConnection));
 
             // Db Migrator
             services
