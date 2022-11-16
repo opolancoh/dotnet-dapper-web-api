@@ -93,7 +93,7 @@ public class DapperContext
                 parameters.Add(ReviewSchema.Columns.Rating, item.Rating, DbType.Int32);
                 parameters.Add(ReviewSchema.Columns.BookId, item.BookId, DbType.Guid);
 
-                connection.Execute(query, parameters);
+                var result = connection.Execute(query, parameters);
             }
         }
         catch (Exception e)

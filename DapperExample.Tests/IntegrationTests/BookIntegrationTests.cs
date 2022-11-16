@@ -54,7 +54,7 @@ public class BookIntegrationTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(existingItem?.Title, payloadObject?.Title);
-        Assert.Equal(existingItem?.PublishedOn, payloadObject?.PublishedOn);
+        Assert.Equal(existingItem?.PublishedOn.Date, payloadObject?.PublishedOn.Date);
     }
 
     [Fact]
@@ -172,7 +172,7 @@ public class BookIntegrationTests
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.NotEqual(Guid.Empty, updatedItemPayloadObject?.Id);
         Assert.Equal(itemToUpdate?.Title, updatedItemPayloadObject?.Title);
-        Assert.Equal(itemToUpdate?.PublishedOn, updatedItemPayloadObject?.PublishedOn);
+        Assert.Equal(itemToUpdate?.PublishedOn.Date, updatedItemPayloadObject?.PublishedOn.Date);
     }
 
     [Fact]

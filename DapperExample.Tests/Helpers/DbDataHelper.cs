@@ -26,31 +26,31 @@ public static class DbDataHelper
             {
                 Id = BookId1,
                 Title = "Book 101",
-                PublishedOn = new DateTime(2022, 01, 24).ToUniversalTime(),
+                PublishedOn = new DateTime(2022, 01, 24),
             },
             new()
             {
                 Id = BookId2,
                 Title = "Book 102",
-                PublishedOn = new DateTime(2022, 01, 19).ToUniversalTime(),
+                PublishedOn = new DateTime(2022, 01, 19),
             },
             new()
             {
                 Id = BookId3,
                 Title = "Book 203",
-                PublishedOn = new DateTime(2022, 04, 26).ToUniversalTime(),
+                PublishedOn = new DateTime(2022, 04, 26),
             },
             new()
             {
                 Id = BookId4,
                 Title = "Book 204",
-                PublishedOn = new DateTime(2022, 07, 13).ToUniversalTime(),
+                PublishedOn = new DateTime(2022, 07, 13),
             },
             new()
             {
                 Id = BookId5,
                 Title = "Book 305",
-                PublishedOn = new DateTime(2022, 10, 20).ToUniversalTime(),
+                PublishedOn = new DateTime(2022, 10, 20),
             },
         };
 

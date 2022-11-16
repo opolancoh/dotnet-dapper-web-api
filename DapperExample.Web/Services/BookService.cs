@@ -37,7 +37,7 @@ public class BookService : IBookService
         {
             Id = Guid.NewGuid(),
             Title = item.Title!,
-            PublishedOn = item.PublishedOn!.Value.ToUniversalTime()
+            PublishedOn = item.PublishedOn!.Value
         };
 
         const string query =

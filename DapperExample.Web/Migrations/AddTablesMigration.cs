@@ -18,7 +18,7 @@ public class AddTablesMigration : Migration
             .WithColumn(ReviewSchema.Columns.Id).AsGuid().NotNullable().PrimaryKey()
             .WithColumn(ReviewSchema.Columns.Comment).AsString().NotNullable()
             .WithColumn(ReviewSchema.Columns.Rating).AsInt32().NotNullable()
-            .WithColumn(ReviewSchema.Columns.BookId).AsGuid().NotNullable().ForeignKey(ReviewSchema.Table, BookSchema.Columns.Id);
+            .WithColumn(ReviewSchema.Columns.BookId).AsGuid().NotNullable().ForeignKey(BookSchema.Table, BookSchema.Columns.Id);
     }
     
     public override void Down()
