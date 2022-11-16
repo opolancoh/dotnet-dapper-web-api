@@ -9,16 +9,14 @@ namespace DapperExample.Web.Data.DatabaseContext;
 
 public class DapperContext
 {
-    private readonly IConfiguration _configuration;
     private readonly string _applicationDbConnection;
     private readonly string _masterDbConnection;
     private readonly string _applicationDbName;
     private Database? _database;
 
-    public DapperContext(IConfiguration configuration)
+    public DapperContext(string connectionString)
     {
-        _configuration = configuration;
-        _applicationDbConnection = configuration.GetConnectionString("ApplicationDbConnection");
+        _applicationDbConnection = connectionString;
         _masterDbConnection = GetMasterDbConnection(_applicationDbConnection);
         _applicationDbName = GetDatabaseName(_applicationDbConnection);
     }

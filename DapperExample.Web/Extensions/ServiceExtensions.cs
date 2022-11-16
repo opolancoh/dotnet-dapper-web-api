@@ -1,6 +1,4 @@
-using System.Reflection;
 using DapperExample.Web.Contracts;
-using DapperExample.Web.Data;
 using DapperExample.Web.Data.DatabaseContext;
 using DapperExample.Web.Migrations;
 using DapperExample.Web.Services;
@@ -27,14 +25,14 @@ public static class ServiceExtensions
         services.AddScoped<IReviewService, ReviewService>();
     }
 
-    public static void ConfigureDbContext(this IServiceCollection services)
+    public static void ConfigureDbContext(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddSingleton<DapperContext>();
+        services.AddSingleton(new DapperContext(configuration.GetConnectionString("ApplicationDbConnection")));
     }
-    
+
     public static void ConfigureDbMigration(this IServiceCollection services, IConfiguration configuration)
     {
-        /* services
+        services
             // Logging is the replacement for the old IAnnouncer
             .AddLogging(lb => lb.AddFluentMigratorConsole())
             // Registration of all FluentMigrator-specific services
@@ -47,7 +45,7 @@ public static class ServiceExtensions
                     // The target DB connection string
                     .WithGlobalConnectionString(configuration.GetConnectionString("ApplicationDbConnection"))
                     // Specify the assembly with the migrations
-                    .WithMigrationsIn(typeof(AddTablesMigration).Assembly))
-            .BuildServiceProvider(); */
+                    .ScanIn(typeof(AddTablesMigration).Assembly))
+            .BuildServiceProvider();
     }
 }

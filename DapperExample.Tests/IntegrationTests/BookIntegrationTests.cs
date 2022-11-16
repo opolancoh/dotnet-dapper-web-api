@@ -9,7 +9,6 @@ namespace DapperExample.Tests.IntegrationTests;
 
 [Collection("SharedContext")]
 public class BookIntegrationTests
-
 {
     private readonly JsonSerializerOptions _serializerOptions;
     private readonly HttpClient _httpClient;

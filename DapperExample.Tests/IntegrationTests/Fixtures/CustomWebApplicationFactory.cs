@@ -29,39 +29,46 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
         // Override application services
         builder.ConfigureServices(services =>
         {
+            var stringConnection =
+                "Server=localhost;Database=books_dapper_db_test;Username=postgres;Password=My@Passw0rd;";
             // Remove and add services
             // DbContext
             var dbContextService = services.SingleOrDefault(x => x.ServiceType == typeof(DapperContext));
             if (dbContextService != null) services.Remove(dbContextService);
-            services.AddSingleton<DapperContext>();
+            services.AddSingleton(new DapperContext(stringConnection));
 
             // Db Migrator
-            var dbMigrationService = services.SingleOrDefault(x => x.ServiceType == typeof(IMigrationRunner));
-            if (dbMigrationService != null) services.Remove(dbMigrationService);
             services
-                .AddLogging(x => x.AddFluentMigratorConsole())
+                // Logging is the replacement for the old IAnnouncer
+                .AddLogging(lb => lb.AddFluentMigratorConsole())
+                // Registration of all FluentMigrator-specific services
                 .AddFluentMigratorCore()
-                .ConfigureRunner(c => c
-                    .AddPostgres()
-                    .WithGlobalConnectionString("Server=localhost;Database=books_dapper_db_test;Username=postgres;Password=My@Passw0rd;")
-                    .WithMigrationsIn(typeof(AddTablesMigration).Assembly));
-            
+                // Configure the runner
+                .ConfigureRunner(
+                    runnerBuilder => runnerBuilder
+                        // Use target DB
+                        .AddPostgres()
+                        // The target DB connection string
+                        .WithGlobalConnectionString(stringConnection)
+                        // Specify the assembly with the migrations
+                        .ScanIn(typeof(AddTablesMigration).Assembly));
+
             var serviceProvider = services.BuildServiceProvider();
             using var scope = serviceProvider.CreateScope();
             var scopedServices = scope.ServiceProvider;
-            
+
             var logger = scopedServices.GetRequiredService<ILogger<CustomWebApplicationFactory<TProgram>>>();
 
             // Create Database
             var db = scopedServices.GetRequiredService<DapperContext>();
             db.Database.EnsureDeleted();
             db.Database.EnsureCreated();
-            
+
             // Create Tables
             var dbMigration = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
             dbMigration.ListMigrations();
             dbMigration.MigrateUp();
-            
+
             // Add Data
             // Don't update/remove this initial data
             var books = DbDataHelper.Books;
@@ -70,7 +77,7 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             var reviews = DbDataHelper.Reviews;
             db.AddReviews(reviews);
 
-            logger.LogError("All data was saved successfully");
+            logger.LogInformation("All data was saved successfully");
         });
     }
 }

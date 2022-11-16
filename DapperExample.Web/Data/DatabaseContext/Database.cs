@@ -1,20 +1,14 @@
-using System.Reflection;
 using Dapper;
-using FluentMigrator.Runner;
-using FluentMigrator.Runner.Announcers;
-using FluentMigrator.Runner.Initialization;
 
 namespace DapperExample.Web.Data.DatabaseContext;
 
 public sealed class Database
 {
     private readonly DapperContext _context;
-    private readonly IMigrationRunner _migrationRunner;
-    
+
     public Database(DapperContext context)
     {
         _context = context;
-        // _migrationRunner = migrationRunner;
     }
 
     // Check if the database does exist
@@ -39,7 +33,14 @@ public sealed class Database
         if (!dbExists) return false;
 
         using var connection = _context.CreateConnectionMaster();
-        connection.Execute($"DROP DATABASE {_context.ApplicationDbName}");
+        var queryList = new string[]
+        {
+            $"REVOKE CONNECT ON DATABASE {_context.ApplicationDbName} FROM PUBLIC;",
+            $"SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE datname = '{_context.ApplicationDbName}'",
+            $"DROP DATABASE {_context.ApplicationDbName}"
+        };
+
+        connection.Execute(String.Join(';', queryList));
         return true;
     }
 
@@ -54,13 +55,6 @@ public sealed class Database
 
         using var connection = _context.CreateConnectionMaster();
         connection.Execute($"CREATE DATABASE {_context.ApplicationDbName}");
-        return true;
-    }
-
-    public static bool RunMigrations(string databaseType, string connectionString, Assembly migrationsAssembly)
-    {
-
-
         return true;
     }
 
