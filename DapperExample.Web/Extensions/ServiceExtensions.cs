@@ -1,6 +1,10 @@
+using System.Reflection;
 using DapperExample.Web.Contracts;
 using DapperExample.Web.Data;
+using DapperExample.Web.Data.DatabaseContext;
+using DapperExample.Web.Migrations;
 using DapperExample.Web.Services;
+using FluentMigrator.Runner;
 
 namespace DapperExample.Web.Extensions;
 
@@ -23,8 +27,27 @@ public static class ServiceExtensions
         services.AddScoped<IReviewService, ReviewService>();
     }
 
-    public static void ConfigureDbContext(this IServiceCollection services, IConfiguration configuration)
+    public static void ConfigureDbContext(this IServiceCollection services)
     {
-        services.AddSingleton<IDapperContext>(x => new DapperContext(configuration.GetConnectionString("PostgresConnection")));
+        services.AddSingleton<DapperContext>();
+    }
+    
+    public static void ConfigureDbMigration(this IServiceCollection services, IConfiguration configuration)
+    {
+        /* services
+            // Logging is the replacement for the old IAnnouncer
+            .AddLogging(lb => lb.AddFluentMigratorConsole())
+            // Registration of all FluentMigrator-specific services
+            .AddFluentMigratorCore()
+            // Configure the runner
+            .ConfigureRunner(
+                builder => builder
+                    // Use target DB
+                    .AddPostgres()
+                    // The target DB connection string
+                    .WithGlobalConnectionString(configuration.GetConnectionString("ApplicationDbConnection"))
+                    // Specify the assembly with the migrations
+                    .WithMigrationsIn(typeof(AddTablesMigration).Assembly))
+            .BuildServiceProvider(); */
     }
 }

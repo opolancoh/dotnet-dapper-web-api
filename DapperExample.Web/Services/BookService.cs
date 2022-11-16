@@ -2,6 +2,7 @@ using System.Data;
 using Dapper;
 using DapperExample.Web.Contracts;
 using DapperExample.Web.Data;
+using DapperExample.Web.Data.DatabaseContext;
 using DapperExample.Web.Data.Schemas;
 using DapperExample.Web.DTOs;
 using DapperExample.Web.Exceptions;
@@ -11,9 +12,9 @@ namespace DapperExample.Web.Services;
 
 public class BookService : IBookService
 {
-    private readonly IDapperContext _context;
+    private readonly DapperContext _context;
 
-    public BookService(IDapperContext context)
+    public BookService(DapperContext context)
     {
         _context = context;
     }
@@ -39,14 +40,14 @@ public class BookService : IBookService
             PublishedOn = item.PublishedOn!.Value.ToUniversalTime()
         };
 
-        const string query = $@"
-            INSERT INTO {BookSchema.Table} ({BookSchema.Columns.Id}, {BookSchema.Columns.Title}, {BookSchema.Columns.PublishedOn})
-            VALUES (@{nameof(Book.Id)}, @{nameof(Book.Title)}, @{nameof(Book.PublishedOn)})";
+        const string query =
+            $@"INSERT INTO ""{BookSchema.Table}"" (""{BookSchema.Columns.Id}"", ""{BookSchema.Columns.Title}"", ""{BookSchema.Columns.PublishedOn}"") " +
+            $@"VALUES (@{BookSchema.Columns.Id}, @{BookSchema.Columns.Title}, @{BookSchema.Columns.PublishedOn})";
 
         var parameters = new DynamicParameters();
-        parameters.Add(nameof(Book.Id), newItem.Id, DbType.Guid);
-        parameters.Add(nameof(Book.Title), newItem.Title, DbType.String);
-        parameters.Add(nameof(Book.PublishedOn), newItem.PublishedOn, DbType.DateTime);
+        parameters.Add(BookSchema.Columns.Id, newItem.Id, DbType.Guid);
+        parameters.Add(BookSchema.Columns.Title, newItem.Title, DbType.String);
+        parameters.Add(BookSchema.Columns.PublishedOn, newItem.PublishedOn, DbType.DateTime);
 
         using var connection = _context.CreateConnection();
         var result = await connection.ExecuteAsync(query, parameters);
@@ -66,20 +67,20 @@ public class BookService : IBookService
             PublishedOn = item.PublishedOn!.Value.ToUniversalTime()
         };
 
-        const string query = $@"
-            UPDATE {BookSchema.Table} SET 
-              {BookSchema.Columns.Title} = @{nameof(Book.Title)}, 
-              {BookSchema.Columns.PublishedOn} = @{nameof(Book.PublishedOn)} 
-            WHERE {BookSchema.Columns.Id} = @{nameof(Book.Id)}";
+        const string query =
+            $@"UPDATE ""{BookSchema.Table}"" SET " +
+            $@"""{BookSchema.Columns.Title}"" = @{BookSchema.Columns.Title}, " +
+            $@"""{BookSchema.Columns.PublishedOn}"" = @{BookSchema.Columns.PublishedOn} " +
+            $@"WHERE ""{BookSchema.Columns.Id}"" = @{BookSchema.Columns.Id}";
 
         var parameters = new DynamicParameters();
-        parameters.Add(nameof(Book.Id), itemToUpdate.Id, DbType.Guid);
-        parameters.Add(nameof(Book.Title), itemToUpdate.Title, DbType.String);
-        parameters.Add(nameof(Book.PublishedOn), itemToUpdate.PublishedOn, DbType.DateTime);
+        parameters.Add(BookSchema.Columns.Id, itemToUpdate.Id, DbType.Guid);
+        parameters.Add(BookSchema.Columns.Title, itemToUpdate.Title, DbType.String);
+        parameters.Add(BookSchema.Columns.PublishedOn, itemToUpdate.PublishedOn, DbType.DateTime);
 
         using var connection = _context.CreateConnection();
         var result = await connection.ExecuteAsync(query, parameters);
-        
+
         if (result == 0)
         {
             var itemExists = await ItemExists(itemToUpdate.Id, connection);
@@ -92,10 +93,11 @@ public class BookService : IBookService
 
     public async Task Remove(Guid id)
     {
-        const string query = $"DELETE FROM {BookSchema.Table} WHERE {BookSchema.Columns.Id} = @{nameof(Book.Id)}";
+        const string query =
+            $@"DELETE FROM ""{BookSchema.Table}"" WHERE ""{BookSchema.Columns.Id}"" = @{BookSchema.Columns.Id}";
 
         var parameters = new DynamicParameters();
-        parameters.Add(nameof(Book.Id), id, DbType.Guid);
+        parameters.Add(BookSchema.Columns.Id, id, DbType.Guid);
 
         using var connection = _context.CreateConnection();
         var result = await connection.ExecuteAsync(query, parameters);
@@ -113,25 +115,26 @@ public class BookService : IBookService
     private async Task<bool> ItemExists(Guid id, IDbConnection connection)
     {
         return await connection.ExecuteScalarAsync<bool>(
-            $"SELECT COUNT(1) FROM {BookSchema.Table} WHERE {BookSchema.Columns.Id} = '{id}'");
+            $@"SELECT COUNT(1) FROM ""{BookSchema.Table}"" WHERE ""{BookSchema.Columns.Id}"" = '{id}'");
     }
 
     private async Task<IEnumerable<BookDto>> GetItemData(Guid? itemId = null)
     {
-        const string baseQuery = $@"
-            SELECT b.{BookSchema.Columns.Id}, 
-                   b.{BookSchema.Columns.Title}, 
-                   b.{BookSchema.Columns.PublishedOn}, 
-                   r.{ReviewSchema.Columns.Id}, 
-                   r.{ReviewSchema.Columns.Comment}, 
-                   r.{ReviewSchema.Columns.Rating} 
-            FROM {BookSchema.Table} b 
-            LEFT JOIN {ReviewSchema.Table} r ON b.{BookSchema.Columns.Id} = r.{ReviewSchema.Columns.BookId}";
+        const string baseQuery =
+            $@"SELECT " +
+            $@"b.""{BookSchema.Columns.Id}"", " +
+            $@"b.""{BookSchema.Columns.Title}"", " +
+            $@"b.""{BookSchema.Columns.PublishedOn}"", " +
+            $@"r.""{ReviewSchema.Columns.Id}"", " +
+            $@"r.""{ReviewSchema.Columns.Comment}"", " +
+            $@"r.""{ReviewSchema.Columns.Rating}"" " +
+            $@"FROM ""{BookSchema.Table}"" b " +
+            $@"LEFT JOIN ""{ReviewSchema.Table}"" r ON b.""{BookSchema.Columns.Id}"" = r.""{ReviewSchema.Columns.BookId}""";
 
         using var connection = _context.CreateConnection();
         var result = new Dictionary<Guid, BookDto>();
         await connection.QueryAsync<Book, Review, Book>(
-            itemId == null ? baseQuery : $"{baseQuery} WHERE b.{BookSchema.Columns.Id} = '{itemId.Value}'",
+            itemId == null ? baseQuery : $@"{baseQuery} WHERE b.""{BookSchema.Columns.Id}"" = '{itemId.Value}'",
             (book, review) =>
             {
                 // Check if the item was already added

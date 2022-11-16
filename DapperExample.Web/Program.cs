@@ -4,7 +4,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.ConfigureCors();
-builder.Services.ConfigureDbContext(builder.Configuration);
+builder.Services.ConfigureDbContext();
+builder.Services.ConfigureDbMigration(builder.Configuration);
 builder.Services.ConfigurePersistenceServices();
 
 builder.Services.AddControllers();
@@ -28,6 +29,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+// app.MigrateDatabase().Run();
 
 // For testing purposes
 public partial class Program {}
